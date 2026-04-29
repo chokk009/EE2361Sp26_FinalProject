@@ -102,3 +102,10 @@ void Accel_move(double ax, double ay){
     
     Move(Xaccel_to_PWM, Yaccel_to_PWM);
 }
+
+void Center_tilt(void){
+    setServo1(3000);
+    setServo2(3000);
+    X=3000;
+    Y=3000;
+}
