@@ -301,6 +301,11 @@ int main(void) {
                 }
             }
             
+            //This is a new count function
+            if(count == 1) {
+                Center_tilt();
+            }
+            
             count = 0;  
         }
         
