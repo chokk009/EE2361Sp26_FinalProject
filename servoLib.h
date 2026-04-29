@@ -18,6 +18,7 @@ extern "C" {
    void Move(double X_PWM, double Y_PWM);
    void Angle_move(double dx, double dy);
    void Accel_move(double ax, double ay);
+   void Center_tilt(void);
 
 
 #ifdef	__cplusplus
