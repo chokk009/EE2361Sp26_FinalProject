@@ -1,6 +1,9 @@
 #include "xc.h"
 #include "servoLib.h"
 
+//Original scales created by finding slope when PWM was y-axis and Acceleration/Angles were x-axis.
+//New Scales made by testing, since originals made movements jerky.
+
 #define AngleScale (1000.0f/500.0f) //Scales angles to PWM
 #define AccelScale (1000.0f/1500.0f)    //Scales acceleration to PWM
 
@@ -11,7 +14,6 @@ double Y = 3000;     //Y PWM initialized at center
 void initServos(void){      //initializes servo motors
     _RCDIV = 0; 
     AD1PCFG = 0xffff; //all digital
-    
     
     //Sets the Timer 3 registers to have a period of 20ms
     T3CONbits.TCKPS = 1;   // 1:8 prescaler
@@ -54,7 +56,7 @@ void setServo2(int val){  //Moves Servo 2
     OC2RS = val;
 }
 
-void Move(double X_PWM, double Y_PWM){
+void Move(double X_PWM, double Y_PWM){  //Moves Servos to desired PWM within safe values for both Servos and avoiding the support column.
     
     if(X_PWM<=4000 && X_PWM>=2195 ) {  //Angles are within safe PWM
         setServo1(X_PWM);
@@ -84,6 +86,8 @@ void Move(double X_PWM, double Y_PWM){
 }
 
 void Angle_move(double dy, double dx){          //Moves servos to previous state + change, limiting motion to safe PWM
+
+   //negative signs allow the table to go in the same direction as the gyroscope tilts.
     double Xangle_to_PWM = (AngleScale*dx)+X;    //PWM of the users current X angle
     double Yangle_to_PWM = -(AngleScale*dy)+Y;   //PWM of the users current Y angle
     
@@ -93,7 +97,7 @@ void Angle_move(double dy, double dx){          //Moves servos to previous state
     Move(Xangle_to_PWM, Yangle_to_PWM);
 }
 
-void Accel_move(double ax, double ay){
+void Accel_move(double ax, double ay){         //similar to Angle_move but for accelerations
     double Xaccel_to_PWM = -AccelScale*ax+X;    //PWM of the users X acceleration
     double Yaccel_to_PWM = -AccelScale*ay+Y;   //PWM of the users Y acceleration
     
@@ -103,7 +107,7 @@ void Accel_move(double ax, double ay){
     Move(Xaccel_to_PWM, Yaccel_to_PWM);
 }
 
-void Center_tilt(void){
+void Center_tilt(void){ //Moves Table to flat position.
     setServo1(3000);
     setServo2(3000);
     X=3000;
