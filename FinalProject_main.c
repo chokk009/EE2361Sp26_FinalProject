@@ -65,12 +65,13 @@ volatile int samplePrep = 0;
 // timer 3 - OC timer with period of 20ms
 void __attribute__((interrupt, auto_psv)) _T1Interrupt() {
     _T1IF = 0;
-    samplePrep = 1;
+    samplePrep = 1;   // flag that's set to 1 every 1 ms
+                      // gets set back to 0 after new imu values are read and averages are calculated
     overflow_T1++;
 }
 void __attribute__((interrupt, auto_psv)) _T2Interrupt() {
     _T2IF = 0;
-    overflow_T2++;
+    overflow_T2++;    // overflow variable used in timing/time difference calculations
 }
 void __attribute__((interrupt, auto_psv)) _IC1Interrupt() {
     unsigned int capturedTime;
@@ -93,12 +94,13 @@ void __attribute__((interrupt, auto_psv)) _IC1Interrupt() {
         //This is a valid new edge
         lastEventTime = currentEventTime;
     
-        //Previous button state was released--new state is pressed
+        //Previous button state was released --> new state is pressed
         if (prevState == RELEASED) {
             prevState = PRESSED;
         
-            //save press time in circular buffer
+            // save press time in circular buffer
             pressTimes[head] = currentEventTime;
+            // tracks the last time button was pressed
             lastClickTime = currentEventTime;
             head = (head + 1) % 3;
         
@@ -138,7 +140,7 @@ void setup(void) {
     push_init(); // initialize push button input pin and IC using T2
     imu_init(); // turn on and initialize accelerometer and gyroscope using I2C1
     initServos(); // initialize pins for servo output and OC
-    initBuffers();
+    initBuffers(); // initialize X and Y buffers
     lcd_init(); // initialize LCD using I2C2
 }
 
@@ -169,37 +171,47 @@ int main(void) {
     int newestIndex, oldestIndex;
     
     while(1) {
-        currentTime = TMR2 + ((long int)(PR2 + 1) * overflow_T2);
-        
+        currentTime = TMR2 + ((long int)(PR2 + 1) * overflow_T2);   // computes the current time at the start of each while(1) loop. 
+                                                                    
         // read IMU output buffers (AVERAGING VERSION)
+        // Collects rotational acceleration data if in GYRO IMUmode and after TMR1 ISR sets ready-to-sample flag = 1
         if (IMUmode == GYRO) {
             if (samplePrep == 1) {
-                
-                putValX(imu_getGyro_X() - 1); // gyro x-output is 1 even when at rest
+                // Updates buffers with new sensor readings
+                putValX(imu_getGyro_X() - 1); // gyro x-output is 1 even when at rest,
+                                              // so we put subtract 1 from imu_getGuro_X() before putting it into buffer
                 putValY(imu_getGyro_Y());
-                
+
+                // Computes new averages over last (SIZE = 4) samples
                 avg_XRead = getAvgX();
                 avg_YRead = getAvgY();
                 
-                samplePrep = 0;              // resets the ready to sample flag 
+                samplePrep = 0;              // resets the ready-to-sample flag 
             }
+            //Updates the X and Y readings
             XRead = avg_XRead;
             YRead = avg_YRead;
         }
+
+        //Collects linear acceleration data if in ACCEL IMUmode and after TMR1 IRS sets ready-to-sample flag = 1
         else if (IMUmode == ACCEL) {
             if (samplePrep == 1) {
-                
+
+                // Updates the old X and Y readings before new averages are calculated
                 old_XRead = avg_XRead; 
                 old_YRead = avg_YRead;
-                
+
+                // Updates buffers with new sensor readings
                 putValX(imu_getAccel_X());
                 putValY(imu_getAccel_Y());
-                
+
+                // Computes new averages over last (SIZE = 4) samples
                 avg_XRead = getAvgX();
                 avg_YRead = getAvgY();
                 
-                samplePrep = 0;              // resets the read to sample flag
+                samplePrep = 0;              // resets the ready-to-sample flag
             }
+            //Updates the X and Y readings
             XRead = avg_XRead;
             YRead = avg_YRead;
         }
@@ -254,7 +266,13 @@ int main(void) {
         // Poll for push button input
         // Double click to block program for 2s and allow controller recalibration
         // Triple click to change between IMU gyroscope/accelerometer modes
-        if ((count > 0) && ((currentTime - lastClickTime) > CLICK_WINDOW)) {
+        // Single click to move maze back to a level position
+        if ((count > 0) && ((currentTime - lastClickTime) > CLICK_WINDOW)) {  // Uses currentTime from top of while(1) loop
+                                                                              // Only excecutes when we have one or more button presses
+                                                                              // AND (CLICK_WINDOW = 0.50 seconds) have passed between currentTime and last time button was pressed
+                                                                              // When user presses button once within CLICK_WINDOW, after CLICK_WINDOW time has passed, program resisters input as single click
+                                                                              // When user presses button twice within CLICK_WINDOW, after CLICK_WINDOW time has passed, program resisters input as double-click
+                                                                              // When user presses button thrice within CLICK_WINDOW, after CLICK_WINDOW time has passed, program resisters input as triple-clcik
             //Triple-click push button to change imu modes
             // Check for triple-click using last 3 press times
             if (count == 3) {
@@ -263,11 +281,11 @@ int main(void) {
 
                 tripleClickDuration = pressTimes[newestIndex] - pressTimes[oldestIndex];
 
-                // If the time difference between the newest and oldest of the last two press times is
-                // within 0.50 s, delay program by 2s
+                // If the time difference between the newest and oldest of the last three press times is
+                // within 0.50 s, swicth states.
                 if (tripleClickDuration <= CLICK_WINDOW) {
-                    IMUmode = !IMUmode;
-                    initBuffers();
+                    IMUmode = !IMUmode;    // Moves between IMUmode = GRYO and IMUmode = ACCEL
+                    initBuffers();         // Clears all data in buffers so the buffers contain only GYRO and only ACCEL values at all times.
                 }
             }
             
@@ -301,12 +319,14 @@ int main(void) {
                 }
             }
             
-            //This is a new count function
+            // If the button was only pressed once
             if(count == 1) {
-                Center_tilt();
+                Center_tilt();    // calls function which centers the servo motors
+                                  // reseting the platform back to its starting level state
             }
-            
-            count = 0;  
+
+            // Sets the button press counter back to 0
+            count = 0;  // Sets count = 0 after if ((count > 0) && ((currentTime - lastClickTime) > CLICK_WINDOW)) loop
         }
         
         delay_ms(25);
