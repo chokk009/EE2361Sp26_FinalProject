@@ -3,6 +3,8 @@
 #include "genLib.h"
 #include "pushLib.h"
 
+// controls the size of X and Y buffers
+// A higher SIZE value increases number of samples averaged
 #define SIZE 4
 
 volatile int bufferX[SIZE];
@@ -10,6 +12,9 @@ volatile int bufferY[SIZE];
 volatile int buffIndexX = 0;
 volatile int buffIndexY = 0;
 
+// Function initializes push button
+// sets up Timer 2 and enables an intterupt flag every time Timer 2 resets (1 second)
+// and maps IC1 to RP10/RB10, capturing every volatge change on the pin
 void push_init(void) {
     // push button connected to RB10
     TRISBbits.TRISB10 = 1; // set RB10 to input (TRISB10 = 1)
@@ -40,6 +45,8 @@ void push_init(void) {
     T2CONbits.TON = 1;
 }
 
+//Initializes both buffers
+//Called when state is switched, clearing the buffers of all their values when switing between ACCEL or GRYO sensor data.
 void initBuffers(void) {
     int i;
     for (i = 0; i < SIZE; i++) {
@@ -51,6 +58,7 @@ void initBuffers(void) {
 }
 
 //X_axis Buffer Functions
+//Updates the X-Axis circular buffer with a new sensor reading
 void putValX(int newValue) {
     bufferX[buffIndexX] = newValue;
     buffIndexX++;
@@ -59,6 +67,7 @@ void putValX(int newValue) {
     }
 }
 
+//When called, returns the average of the last four (SIZE) X-Axis sensor readings as a singed long
 signed long getAvgX(void) {
     signed long sum = 0;
     int i;
@@ -68,7 +77,9 @@ signed long getAvgX(void) {
     return sum / SIZE;
 }
 
+
 //Y-Axis Buffer Functions
+//Updates the Y-Axis circular buffer with a new sensor reading
 void putValY(int newValue) {
     bufferY[buffIndexY] = newValue;
     buffIndexY++;
@@ -77,6 +88,7 @@ void putValY(int newValue) {
     }
 }
 
+//When called, returns the average of the last four (SIZE) Y-Axis sensor readings as a singed long
 signed long getAvgY(void) {
     signed long sum = 0;
     int i;
