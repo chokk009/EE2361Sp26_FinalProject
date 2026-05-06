@@ -168,27 +168,7 @@ void lcd_printStr(const char *str) {
         lcd_printChar(*c);
     }
 }
-void lcd_scrollStr(const char *str) {
-    char *c = str;
-    
-    // start printing full phrase, then scroll one letter at a time to the left
-    while (*c != '\0') {
-        for (char *currC = c; *currC; currC++) {
-            lcd_printChar(*currC);
-        }
-        delay_ms(300); // scrolling speed
-        lcd_cmd(0x01);
-        c++;
-    }
-    
-    // print final character
-    for (char *finalC = c; *finalC; finalC++) {
-        lcd_printChar(*finalC);
-    }
-    delay_ms(1000);
-    lcd_cmd(0x01);
-    
-}
+
 void lcd_clr(void) {
     lcd_cmd(0x01);
 }
