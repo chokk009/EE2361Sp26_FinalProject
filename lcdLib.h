@@ -21,7 +21,6 @@ void lcd_init(void); // setup lcd using i2c2 on startup
 void lcd_setCursor(char x, char y);
 void lcd_printChar(char myChar);
 void lcd_printStr(const char *str);
-void lcd_scrollStr(const char *str);
 void lcd_clr(void);
 
 #ifdef	__cplusplus
